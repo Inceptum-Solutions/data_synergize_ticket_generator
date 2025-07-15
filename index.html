@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Synergize - Payroll Statement Generator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jsPDF CDN for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- jsPDF-AutoTable CDN for beautiful tables -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <!-- SheetJS (xlsx) CDN for Excel file parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Fortune 500 Level Styling */
+        :root {
+            --primary-color: #1e40af;
+            --primary-light: #3b82f6;
+            --primary-dark: #1e3a8a;
+            --secondary-color: #64748b;
+            --accent-color: #f59e0b;
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+            --background-light: #f8fafc;
+            --background-white: #ffffff;
+            --border-color: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Main Container */
+        .main-container {
+            width: 100%;
+            max-width: 1000px;
+            margin: 2rem auto;
+            background: var(--background-white);
+            border-radius: 24px;
+            box-shadow: var(--shadow-xl);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Header Section */
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            padding: 3rem 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="white" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            opacity: 0.3;
+        }
+
+        .logo-container {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 80px;
+            height: 80px;
+            background: var(--background-white);
+            border-radius: 50%;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo-container img {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+        }
+
+        .header h1 {
+            color: var(--background-white);
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin: 0 0 0.5rem 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.1rem;
+            font-weight: 400;
+            margin: 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Content Section */
+        .content {
+            padding: 3rem 2rem;
+        }
+
+        /* Form Grid */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2.5rem;
+        }
+
+        /* Form Group */
+        .form-group {
+            position: relative;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Enhanced Select Styling */
+        .select-container {
+            position: relative;
+        }
+
+        .select-container::after {
+            content: '';
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 6px solid var(--text-secondary);
+            pointer-events: none;
+            transition: transform 0.2s ease;
+        }
+
+        .select-container:focus-within::after {
+            transform: translateY(-50%) rotate(180deg);
+        }
+
+        select {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            background: var(--background-white);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            appearance: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        select:hover {
+            border-color: var(--primary-light);
+            box-shadow: var(--shadow-md);
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+        }
+
+        /* Enhanced Input Styling */
+        input[type="text"] {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            background: var(--background-white);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        input[type="text"]:hover {
+            border-color: var(--primary-light);
+            box-shadow: var(--shadow-md);
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+        }
+
+        /* File Upload Styling */
+        .file-upload-container {
+            position: relative;
+            margin-bottom: 2.5rem;
+        }
+
+        .file-upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 16px;
+            padding: 3rem 2rem;
+            text-align: center;
+            background: var(--background-light);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .file-upload-area:hover {
+            border-color: var(--primary-light);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .file-upload-area.dragover {
+            border-color: var(--primary-color);
+            background: rgba(30, 64, 175, 0.1);
+        }
+
+        .file-upload-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 1rem;
+            background: var(--primary-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        .file-upload-text {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .file-upload-hint {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .file-upload-button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload-button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        /* Enhanced Button Styling */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            padding: 1.25rem 2.5rem;
+            font-size: 1.125rem;
+            font-weight: 700;
+            text-decoration: none;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            min-height: 56px;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: white;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Feedback Messages */
+        .feedback {
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 500;
+            margin-top: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+
+        .feedback.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .feedback-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .feedback-error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error-color);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .feedback-info {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--primary-color);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .feedback-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .main-container {
+                margin: 1rem;
+                border-radius: 16px;
+            }
+
+            .header {
+                padding: 2rem 1.5rem;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .content {
+                padding: 2rem 1.5rem;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .btn {
+                padding: 1rem 2rem;
+                font-size: 1rem;
+            }
+            
+            /* Mobile-specific improvements */
+            .file-upload-area {
+                padding: 2rem 1rem;
+            }
+            
+            .file-upload-text {
+                font-size: 1rem;
+            }
+            
+            .file-upload-hint {
+                font-size: 0.8rem;
+            }
+            
+            select, input[type="text"] {
+                padding: 0.875rem 1rem;
+                font-size: 1rem;
+            }
+            
+            .form-label {
+                font-size: 0.8rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.75rem;
+            }
+            
+            .header p {
+                font-size: 1rem;
+            }
+            
+            .logo-container {
+                width: 60px;
+                height: 60px;
+            }
+            
+            .logo-container img {
+                width: 45px;
+                height: 45px;
+            }
+            
+            .content {
+                padding: 1.5rem 1rem;
+            }
+            
+            .btn {
+                padding: 0.875rem 1.5rem;
+                font-size: 0.95rem;
+            }
+        }
+
+        /* Animation Classes */
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .slide-up {
+            animation: slideUp 0.4s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container fade-in">
+        <!-- Header Section -->
+        <div class="header">
+            <div class="logo-container">
+                <img src="logo.png" alt="Data Synergize Logo">
+            </div>
+            <h1>Payroll Statement Generator</h1>
+            <p>Professional payroll documentation for enterprise organizations</p>
+        </div>
+
+        <!-- Content Section -->
+        <div class="content">
+            <!-- Form Grid -->
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="companyName" class="form-label">Company Name</label>
+                    <div class="select-container">
+                        <select id="companyName" required>
+                            <option value="">Select Company</option>
+                            <option value="Jozana">Jozana</option>
+                            <option value="Sitefasi Investments">Sitefasi Investments</option>
+                            <option value="Sima Ndvodza Investments">Sima Ndvodza Investments</option>
+                            <option value="Wilper Holdings">Wilper Holdings</option>
+                            <option value="Bhefranel">Bhefranel</option>
+                            <option value="Fibok">Fibok</option>
+                            <option value="Delma">Delma</option>
+                            <option value="NGS">NGS</option>
+                            <option value="eMachalachala">eMachalachala</option>
+                            <option value="Inceptum Solutions">Inceptum Solutions</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="filterType" class="form-label">Employee Filter</label>
+                    <div class="select-container">
+                        <select id="filterType" required>
+                            <option value="all">All Employees</option>
+                            <option value="specific">Specific Employee Number</option>
+                            <option value="startsWith">Employee Number Starts With...</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Value Container -->
+            <div id="filterValueContainer" class="form-group slide-up" style="display: none;">
+                <label for="filterValue" class="form-label">Filter Value</label>
+                <input type="text" id="filterValue" placeholder="Enter employee number or prefix" class="w-full">
+            </div>
+
+            <!-- PDF Settings Section -->
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label for="fontSize" class="form-label">Font Size (Tickets per page)</label>
+                <div class="select-container">
+                    <select id="fontSize" required>
+                        <option value="12">Large Font (Fewer tickets per page)</option>
+                        <option value="10" selected>Medium Font (Default)</option>
+                        <option value="8">Small Font (More tickets per page)</option>
+                        <option value="6">Extra Small Font (Maximum tickets per page)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- File Upload Section -->
+            <div class="file-upload-container">
+                <label class="form-label">Upload Payroll Data File</label>
+                <div class="file-upload-area" id="fileUploadArea">
+                    <div class="file-upload-icon">
+                        📄
+                    </div>
+                    <div class="file-upload-text">Drop your file here or click to browse</div>
+                    <div class="file-upload-hint">Supports CSV and Excel files (.csv, .xlsx, .xls)</div>
+                    <button type="button" class="file-upload-button">Choose File</button>
+                    <input type="file" id="fileInput" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+                </div>
+            </div>
+
+            <!-- Generate Button -->
+            <button id="generatePdfButton" class="btn btn-primary w-full">
+                <span id="buttonText">Generate Payroll PDF</span>
+                <div id="spinner" class="spinner"></div>
+            </button>
+
+            <!-- Feedback Message -->
+            <div id="feedbackMessage" class="feedback"></div>
+        </div>
+    </div>
+
+    <script>
+        // Wrap the entire script in an IIFE to create a new scope
+        (function() {
+            // Initialize jsPDF and XLSX
+            const { jsPDF } = window.jspdf;
+            const XLSX = window.XLSX;
+
+            // Get references to HTML elements
+            const companyNameSelect = document.getElementById('companyName');
+            const filterTypeSelect = document.getElementById('filterType');
+            const filterValueContainer = document.getElementById('filterValueContainer');
+            const filterValueInput = document.getElementById('filterValue');
+            const fileInput = document.getElementById('fileInput');
+            const fileUploadArea = document.getElementById('fileUploadArea');
+            const fontSizeSelect = document.getElementById('fontSize');
+            const generatePdfButton = document.getElementById('generatePdfButton');
+            const buttonText = document.getElementById('buttonText');
+            const spinner = document.getElementById('spinner');
+            const feedbackMessage = document.getElementById('feedbackMessage');
+
+            // Enhanced file upload handling
+            fileUploadArea.addEventListener('click', () => fileInput.click());
+            
+            fileUploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                fileUploadArea.classList.add('dragover');
+            });
+
+            fileUploadArea.addEventListener('dragleave', () => {
+                fileUploadArea.classList.remove('dragover');
+            });
+
+            fileUploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                fileUploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    updateFileDisplay();
+                }
+            });
+
+            fileInput.addEventListener('change', updateFileDisplay);
+
+            function updateFileDisplay() {
+                const file = fileInput.files[0];
+                if (file) {
+                    const fileName = file.name;
+                    const fileSize = (file.size / 1024 / 1024).toFixed(2);
+                    fileUploadArea.innerHTML = `
+                        <div class="file-upload-icon" style="background: var(--success-color);">
+                            ✓
+                        </div>
+                        <div class="file-upload-text">${fileName}</div>
+                        <div class="file-upload-hint">Size: ${fileSize} MB</div>
+                        <button type="button" class="file-upload-button" onclick="fileInput.click()">Change File</button>
+                    `;
+                }
+            }
+
+            // Event listener for filter type selection
+            filterTypeSelect.addEventListener('change', () => {
+                if (filterTypeSelect.value === 'specific' || filterTypeSelect.value === 'startsWith') {
+                    filterValueContainer.style.display = 'block';
+                    filterValueContainer.classList.add('slide-up');
+                } else {
+                    filterValueContainer.style.display = 'none';
+                    filterValueInput.value = '';
+                }
+            });
+
+            // Enhanced feedback message function
+            function showFeedback(message, type = 'info') {
+                const icons = {
+                    success: '✓',
+                    error: '✕',
+                    info: 'ℹ'
+                };
+
+                feedbackMessage.innerHTML = `
+                    <div class="feedback-icon">${icons[type]}</div>
+                    <span>${message}</span>
+                `;
+                feedbackMessage.className = `feedback feedback-${type} show`;
+                
+                // Hide after 5 seconds
+                setTimeout(() => {
+                    feedbackMessage.classList.remove('show');
+                }, 5000);
+            }
+
+            // Helper function to find column index based on possible header names
+            function findColumnIndex(headers, possibleNames) {
+                for (const name of possibleNames) {
+                    const index = headers.findIndex(header => header.trim().toLowerCase() === name.toLowerCase());
+                    if (index !== -1) {
+                        return index;
+                    }
+                }
+                return -1;
+            }
+
+            // Function to parse "DD/MM/YYYY - XXX/YYY" pattern (now handles multiple occurrences)
+            function parseDateAndMetres(text) {
+                const regex = /(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d+)\/(\d+)/g;
+                let matches = [];
+                let match;
+                while ((match = regex.exec(text)) !== null) {
+                    matches.push({
+                        date: match[1],
+                        totalMeters: parseInt(match[2], 10),
+                        basicTask: parseInt(match[3], 10)
+                    });
+                }
+                return matches.length > 0 ? matches : null;
+            }
+
+            // Function to extract date range from ticket details
+            function extractDateRange(text) {
+                const dateRangeRegex = /(\d{1,2}\s+\w+\s*-\s*\d{1,2}\s+\w+)/;
+                const match = text.match(dateRangeRegex);
+                return match ? match[1] : null;
+            }
+
+            // Function to extract "Imali" strings directly from ticketDetails
+            function extractImaliStrings(text) {
+                // Updated regex to match the exact format from the screenshot
+                const imaliSeyiyonkeRegex = /(imali seyiyonkhe kulamalanga labaliwe ngu\s*E\d+(\.\d{1,2})?)/i;
+                const imaliWakhoRegex = /(Imali yakho seyiyonkhe kulelithikithi ngu\s*E\d+(\.\d{1,2})?)/i;
+
+                const imaliSeyiyonkeMatch = text.match(imaliSeyiyonkeRegex);
+                const imaliWakhoMatch = text.match(imaliWakhoRegex);
+
+                return {
+                    imaliSeyiyonke: imaliSeyiyonkeMatch ? imaliSeyiyonkeMatch[1] : null,
+                    imaliWakho: imaliWakhoMatch ? imaliWakhoMatch[1] : null
+                };
+            }
+
+            // Function to parse CSV content
+            function parseCsv(csvContent) {
+                const lines = csvContent.split('\n').filter(line => line.trim() !== '');
+                const data = [];
+
+                if (lines.length === 0) {
+                    return [];
+                }
+
+                const headerLine = lines[0].trim();
+                const headers = headerLine.match(/(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|([^,]*))/g)
+                                           .map(part => part ? part.replace(/^"|"$/g, '').replace(/""/g, '"').trim() : '');
+
+                const employeeNumberColIndex = findColumnIndex(headers, ["Employee No", "Employee Number", "EmployeeID", "Employee Id", "Employee", "Emp No"]);
+                const ticketDetailsColIndex = findColumnIndex(headers, ["Ticket", "Ticket Details", "Description", "Issue", "Ticket Description"]);
+
+                if (employeeNumberColIndex === -1 || ticketDetailsColIndex === -1) {
+                    showFeedback('Required columns ("Employee No" or "Employee Number") AND ("Ticket" or "Ticket Details") not found in CSV header. Please ensure your file has these columns.', 'error');
+                    return [];
+                }
+
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    const parts = line.match(/(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|([^,]*))/g)
+                                      .map(part => part ? part.replace(/^"|"$/g, '').replace(/""/g, '"').trim() : '');
+
+                    if (parts.length > Math.max(employeeNumberColIndex, ticketDetailsColIndex)) {
+                        const employeeNumber = parts[employeeNumberColIndex];
+                        const ticketDetails = parts[ticketDetailsColIndex];
+                        
+                        const readingDataEntries = parseDateAndMetres(ticketDetails);
+                        const imaliStrings = extractImaliStrings(ticketDetails);
+
+                        if (employeeNumber && ticketDetails) {
+                            data.push({
+                                employeeNumber: String(employeeNumber),
+                                ticketDetails: String(ticketDetails),
+                                readingDataEntries: readingDataEntries,
+                                imaliSeyiyonke: imaliStrings.imaliSeyiyonke,
+                                imaliWakho: imaliStrings.imaliWakho
+                            });
+                        }
+                    } else {
+                        console.warn(`Skipping malformed or incomplete CSV row: ${line}`);
+                    }
+                }
+                return data;
+            }
+
+            // Function to parse XLSX content
+            function parseXlsx(arrayBuffer) {
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet);
+
+                const data = [];
+                json.forEach(row => {
+                    let employeeNumberKey = Object.keys(row).find(key => 
+                        ["Employee No", "Employee Number", "EmployeeID", "Employee Id", "Employee", "Emp No"].includes(key.trim())
+                    );
+                    let ticketDetailsKey = Object.keys(row).find(key => 
+                        ["Ticket", "Ticket Details", "Description", "Issue", "Ticket Description"].includes(key.trim())
+                    );
+
+                    const employeeNumber = employeeNumberKey ? row[employeeNumberKey] : '';
+                    const ticketDetails = ticketDetailsKey ? row[ticketDetailsKey] : '';
+                    
+                    const readingDataEntries = parseDateAndMetres(String(ticketDetails));
+                    const imaliStrings = extractImaliStrings(String(ticketDetails));
+
+                    if (employeeNumber && ticketDetails) {
+                        data.push({ 
+                            employeeNumber: String(employeeNumber), 
+                            ticketDetails: String(ticketDetails),
+                            readingDataEntries: readingDataEntries,
+                            imaliSeyiyonke: imaliStrings.imaliSeyiyonke,
+                            imaliWakho: imaliStrings.imaliWakho
+                        });
+                    } else {
+                        console.warn('Skipping XLSX row due to missing or empty "Employee Number" or "Ticket Details":', row);
+                    }
+                });
+                return data;
+            }
+
+            // Add event listener to the Generate PDF button
+            generatePdfButton.addEventListener('click', async () => {
+                const file = fileInput.files[0];
+                const companyName = companyNameSelect.value.trim();
+                const filterType = filterTypeSelect.value;
+                const filterValue = filterValueInput.value.trim();
+                const fontSize = parseInt(fontSizeSelect.value);
+
+                if (!file) {
+                    showFeedback('Please select a CSV or XLSX file first.', 'error');
+                    return;
+                }
+                if (!companyName) {
+                    showFeedback('Please select a Company Name.', 'error');
+                    return;
+                }
+                if ((filterType === 'specific' || filterType === 'startsWith') && !filterValue) {
+                    showFeedback('Please enter a filter value for the selected employee filter type.', 'error');
+                    return;
+                }
+
+                // Show loading indicator with progress updates
+                buttonText.textContent = 'Processing file...';
+                spinner.style.display = 'block';
+                generatePdfButton.disabled = true;
+
+                try {
+                    let parsedData = [];
+                    const reader = new FileReader();
+
+                    reader.onload = async (e) => {
+                        const fileExtension = file.name.split('.').pop().toLowerCase();
+
+                        if (fileExtension === 'csv') {
+                            parsedData = parseCsv(e.target.result);
+                        } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+                            parsedData = parseXlsx(e.target.result);
+                        } else {
+                            showFeedback('Unsupported file type. Please upload a CSV or XLSX file.', 'error');
+                            resetButton();
+                            return;
+                        }
+
+                        if (parsedData.length === 0) {
+                            showFeedback('No valid employee data found in the file. Please check the file format and content, especially the column headers.', 'error');
+                            resetButton();
+                            return;
+                        }
+
+                        // Apply filtering
+                        let filteredData = [];
+                        if (filterType === 'all') {
+                            filteredData = parsedData;
+                        } else if (filterType === 'specific') {
+                            filteredData = parsedData.filter(entry => entry.employeeNumber.toLowerCase() === filterValue.toLowerCase());
+                        } else if (filterType === 'startsWith') {
+                            filteredData = parsedData.filter(entry => entry.employeeNumber.toLowerCase().startsWith(filterValue.toLowerCase()));
+                        }
+
+                        if (filteredData.length === 0) {
+                            showFeedback('No employees matched your filter criteria.', 'error');
+                            resetButton();
+                            return;
+                        }
+
+                        // Update loading message
+                        buttonText.textContent = 'Generating PDF...';
+                        
+                        const doc = new jsPDF();
+                        const margin = 15;
+                        const pageHeight = doc.internal.pageSize.height;
+                        let yPos = margin;
+
+                        // Iterate through each filtered data entry
+                        for (let i = 0; i < filteredData.length; i++) {
+                            // Update progress for large files
+                            if (filteredData.length > 10 && i % Math.ceil(filteredData.length / 10) === 0) {
+                                const progress = Math.round((i / filteredData.length) * 100);
+                                buttonText.textContent = `Generating PDF... ${progress}%`;
+                                // Allow UI to update
+                                await new Promise(resolve => setTimeout(resolve, 10));
+                            }
+                            
+                            const entry = filteredData[i];
+                            const employeeNumber = entry.employeeNumber;
+                            const readingDataEntries = entry.readingDataEntries;
+                            const imaliSeyiyonke = entry.imaliSeyiyonke;
+                            const imaliWakho = entry.imaliWakho;
+
+                            // Extract date range from ticket details
+                            const dateRange = extractDateRange(entry.ticketDetails);
+
+                            // Determine table title date range
+                            let tableTitle = "";
+                            if (readingDataEntries && readingDataEntries.length > 0) {
+                                const dates = readingDataEntries.map(e => {
+                                    const parts = e.date.split('/');
+                                    return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                                });
+                                dates.sort((a, b) => a - b);
+                                const firstDate = dates[0].toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                                const lastDate = dates[dates.length - 1].toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                                tableTitle = `From ${firstDate} - ${lastDate}`;
+                            }
+
+                            // Message Content Construction
+                            let messageLines = [];
+                            
+                            // Add bold employee number
+                            doc.setFontSize(fontSize);
+                            doc.setFont(undefined, 'bold');
+                            doc.text(`Employee Number: ${employeeNumber}`, margin, yPos);
+                            yPos += doc.getTextDimensions(`Employee Number: ${employeeNumber}`, {
+                                fontSize: fontSize,
+                                maxWidth: doc.internal.pageSize.width - 2 * margin
+                            }).h + 5;
+                            
+                            // Reset font to normal for rest of content
+                            doc.setFont(undefined, 'normal');
+                            
+                            messageLines.push(``);
+                            messageLines.push(`Dear cane cutter,`);
+                            messageLines.push(``);
+                            messageLines.push(`The information below contains your payroll info for the selected/stated period.`);
+                            messageLines.push(``);
+
+                            // Add the extracted sentences above the line if they exist
+                            if (imaliSeyiyonke || imaliWakho) {
+                                if (imaliSeyiyonke) {
+                                    messageLines.push(`"${imaliSeyiyonke}"`);
+                                }
+                                if (imaliWakho) {
+                                    messageLines.push(`"${imaliWakho}"`);
+                                }
+                                messageLines.push(``);
+                            }
+
+                            const textBeforeTableHeight = doc.getTextDimensions(messageLines.join('\n'), {
+                                fontSize: fontSize,
+                                maxWidth: doc.internal.pageSize.width - 2 * margin
+                            }).h;
+
+                            let estimatedTableHeight = 0;
+                            if (readingDataEntries && readingDataEntries.length > 0) {
+                                estimatedTableHeight = (readingDataEntries.length + 1) * 10 + 10;
+                            }
+
+                            if (yPos + textBeforeTableHeight + estimatedTableHeight + 50 > pageHeight - margin && i > 0) {
+                                doc.addPage();
+                                yPos = margin;
+                            }
+
+                            doc.setFontSize(fontSize);
+                            doc.text(messageLines.join('\n'), margin, yPos);
+                            yPos += textBeforeTableHeight + 5;
+
+                            if (readingDataEntries && readingDataEntries.length > 0) {
+                                doc.setFontSize(fontSize + 2);
+                                doc.setFont(undefined, 'bold');
+                                doc.text(tableTitle, doc.internal.pageSize.width / 2, yPos, { align: 'center' });
+                                yPos += 10;
+                                doc.setFont(undefined, 'normal');
+
+                                const head = [['Date', 'Basic Task', 'Basic Meters Completed', 'Bonus Meters Completed', 'Total Meters Completed']];
+                                const body = readingDataEntries.map(item => {
+                                    const bonusMeters = item.totalMeters - item.basicTask;
+                                    // Add "-" in front of meters for undertask cases
+                                    const bonusMetersDisplay = bonusMeters < 0 ? `-${Math.abs(bonusMeters)}` : bonusMeters;
+                                    return [
+                                        item.date,
+                                        item.basicTask,
+                                        item.basicTask,
+                                        bonusMetersDisplay,
+                                        item.totalMeters
+                                    ];
+                                });
+
+                                doc.autoTable({
+                                    startY: yPos,
+                                    head: head,
+                                    body: body,
+                                    theme: 'grid',
+                                    styles: {
+                                        fontSize: Math.max(fontSize - 1, 6), // Ensure minimum readable font size
+                                        cellPadding: 2,
+                                        halign: 'center',
+                                        valign: 'middle',
+                                        lineColor: [200, 200, 200],
+                                        lineWidth: 0.1
+                                    },
+                                    headStyles: {
+                                        fillColor: [220, 220, 220],
+                                        textColor: [50, 50, 50],
+                                        fontStyle: 'bold',
+                                        halign: 'center'
+                                    },
+                                    columnStyles: {
+                                        0: { halign: 'left' },
+                                    },
+                                    margin: { left: margin, right: margin }
+                                });
+                                yPos = doc.autoTable.previous.finalY + 10;
+                            } else {
+                                yPos += 5;
+                            }
+
+                            // Remove the old imali lines section since we now place them above the line
+                            yPos += 5;
+
+                            doc.setFontSize(fontSize);
+                            const closingRemarks = `
+Thank you,
+${companyName}
+                            `.trim();
+                            doc.text(closingRemarks, margin, yPos);
+                            yPos += doc.getTextDimensions(closingRemarks, {
+                                fontSize: fontSize,
+                                maxWidth: doc.internal.pageSize.width - 2 * margin
+                            }).h + 15;
+
+                            if (i < filteredData.length - 1) {
+                                doc.setDrawColor(200, 200, 200);
+                                doc.line(margin, yPos - 5, doc.internal.pageSize.width - margin, yPos - 5);
+                                yPos += 10;
+                            }
+
+                            if (i < filteredData.length - 1 && yPos + 100 > pageHeight - margin) {
+                                doc.addPage();
+                                yPos = margin;
+                            }
+                        }
+
+                        doc.save('employee_payroll_statements.pdf');
+                        showFeedback('PDF generated successfully!', 'success');
+                        resetButton();
+                    };
+
+                    reader.onerror = () => {
+                        showFeedback('Error reading file.', 'error');
+                        resetButton();
+                    };
+
+                    const fileExtension = file.name.split('.').pop().toLowerCase();
+                    if (fileExtension === 'csv') {
+                        reader.readAsText(file);
+                    } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+                        reader.readAsArrayBuffer(file);
+                    } else {
+                        showFeedback('Unsupported file type. Please upload a CSV or XLSX file.', 'error');
+                        resetButton();
+                    }
+
+                } catch (error) {
+                    console.error('Error generating PDF:', error);
+                    showFeedback('An unexpected error occurred during PDF generation.', 'error');
+                    resetButton();
+                }
+            });
+
+            function resetButton() {
+                buttonText.textContent = 'Generate Payroll PDF';
+                spinner.style.display = 'none';
+                generatePdfButton.disabled = false;
+            }
+        })();
+    </script>
+</body>
+</html>
