@@ -1010,10 +1010,14 @@
                                     // For the actual bonus meters column, show 0 if negative
                                     const actualBonusMeters = bonusMeters < 0 ? 0 : bonusMeters;
                                     
+                                    // Basic Meters Completed logic: if bonus meters is 0 (undertask), 
+                                    // then basic meters = total meters, otherwise basic meters = basic task
+                                    const basicMetersCompleted = actualBonusMeters === 0 ? item.totalMeters : item.basicTask;
+                                    
                                     return [
                                         item.date,
                                         item.basicTask,
-                                        item.basicTask, // Basic Meters Completed is same as Basic Task
+                                        basicMetersCompleted, // Basic Meters Completed (adjusted for undertask)
                                         actualBonusMeters, // Bonus Meters Completed (0 if negative)
                                         item.totalMeters
                                     ];
