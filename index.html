@@ -911,11 +911,14 @@
 
                         // Update loading message
                         buttonText.textContent = 'Generating PDF...';
-                        
+
                         const doc = new jsPDF();
                         const margin = 15;
                         const pageHeight = doc.internal.pageSize.height;
                         let yPos = margin;
+
+                        // Check if Sitefasi is selected for custom PDF format
+                        const isSitefasi = companyName === 'Sitefasi Investments';
 
                         // Iterate through each filtered data entry
                         for (let i = 0; i < filteredData.length; i++) {
@@ -955,133 +958,14 @@
                             }
                             yPos = margin;
 
-                            // Message Content Construction
-                            let messageLines = [];
-                            
-                            // Add bold employee number
-                            doc.setFontSize(fontSize);
-                            doc.setFont(undefined, 'bold');
-                            doc.text(`Employee Number: ${employeeNumber}`, margin, yPos);
-                            yPos += doc.getTextDimensions(`Employee Number: ${employeeNumber}`, {
-                                fontSize: fontSize,
-                                maxWidth: doc.internal.pageSize.width - 2 * margin
-                            }).h + 5;
-                            
-                            // Reset font to normal for rest of content
-                            doc.setFont(undefined, 'normal');
-                            
-                            messageLines.push(``);
-                            messageLines.push(`Dear cane cutter,`);
-                            messageLines.push(``);
-                            messageLines.push(`The information below contains your payroll info for the selected/stated period.`);
-                            messageLines.push(``);
-
-                            const textBeforeTableHeight = doc.getTextDimensions(messageLines.join('\n'), {
-                                fontSize: fontSize,
-                                maxWidth: doc.internal.pageSize.width - 2 * margin
-                            }).h;
-
-                            // Add text content before table
-                            doc.setFontSize(fontSize);
-                            doc.text(messageLines.join('\n'), margin, yPos);
-                            yPos += textBeforeTableHeight + 5; // Space after text before table
-
-                            // Add the table if reading data exists
-                            if (readingDataEntries && readingDataEntries.length > 0) {
-                                // Add table title
-                                doc.setFontSize(fontSize + 2);
-                                doc.setFont(undefined, 'bold');
-                                doc.text(tableTitle, doc.internal.pageSize.width / 2, yPos, { align: 'center' });
-                                yPos += 10; // Space after table title
-                                doc.setFont(undefined, 'normal');
-
-                                // Prepare table data for autoTable
-                                const head = [['Date', 'Basic Task', 'Basic Meters Completed', 'Bonus Meters Completed', 'Total Meters Completed']];
-                                const body = readingDataEntries.map(item => {
-                                    const bonusMeters = item.totalMeters - item.basicTask;
-                                    // Show "Undertask (-x)" for negative bonus meters, otherwise show the number (or 0 if negative)
-                                    let bonusMetersDisplay;
-                                    if (bonusMeters < 0) {
-                                        bonusMetersDisplay = `Undertask (${bonusMeters})`;
-                                    } else {
-                                        bonusMetersDisplay = bonusMeters;
-                                    }
-                                    
-                                    // For the actual bonus meters column, show 0 if negative
-                                    const actualBonusMeters = bonusMeters < 0 ? 0 : bonusMeters;
-                                    
-                                    // Basic Meters Completed logic: if bonus meters is 0 (undertask), 
-                                    // then basic meters = total meters, otherwise basic meters = basic task
-                                    const basicMetersCompleted = actualBonusMeters === 0 ? item.totalMeters : item.basicTask;
-                                    
-                                    return [
-                                        item.date,
-                                        item.basicTask,
-                                        basicMetersCompleted, // Basic Meters Completed (adjusted for undertask)
-                                        actualBonusMeters, // Bonus Meters Completed (0 if negative)
-                                        item.totalMeters
-                                    ];
-                                });
-
-                                // Draw the table using autoTable
-                                doc.autoTable({
-                                    startY: yPos,
-                                    head: head,
-                                    body: body,
-                                    theme: 'grid',
-                                    styles: {
-                                        fontSize: Math.max(fontSize - 1, 6), // Ensure minimum readable font size
-                                        cellPadding: 2,
-                                        halign: 'center', // Center align content
-                                        valign: 'middle',
-                                        lineColor: [200, 200, 200], // Light grey borders
-                                        lineWidth: 0.1
-                                    },
-                                    headStyles: {
-                                        fillColor: [220, 220, 220], // Light grey background for header
-                                        textColor: [50, 50, 50],
-                                        fontStyle: 'bold',
-                                        halign: 'center'
-                                    },
-                                    columnStyles: {
-                                        0: { halign: 'left' }, // Date column left aligned
-                                    },
-                                    margin: { left: margin, right: margin }
-                                });
-                                yPos = doc.autoTable.previous.finalY + 10; // Update yPos after table
+                            // Different PDF format for Sitefasi
+                            if (isSitefasi) {
+                                // Sitefasi custom format
+                                generateSitefasiPDF(doc, entry, fontSize, margin, yPos, companyName);
                             } else {
-                                yPos += 5; // Just a small space if no table
+                                // Standard format for other companies
+                                generateStandardPDF(doc, entry, fontSize, margin, yPos, companyName);
                             }
-
-                            // Add the extracted sentences below the table (without quotes and capitalized)
-                            if (imaliWakho) {
-                                doc.setFontSize(fontSize);
-                                
-                                // Only show the second sentence (Imali yakho...), capitalize first letter and remove quotes
-                                const capitalized = imaliWakho.charAt(0).toUpperCase() + imaliWakho.slice(1);
-                                
-                                doc.text(capitalized, margin, yPos);
-                                yPos += doc.getTextDimensions(capitalized, {
-                                    fontSize: fontSize,
-                                    maxWidth: doc.internal.pageSize.width - 2 * margin
-                                }).h + 10; // Space after imali line
-                            } else {
-                                yPos += 5; // Small space if no imali line
-                            }
-
-                            // Add closing remarks and company name
-                            doc.setFontSize(fontSize);
-                            const closingRemarks = `
-Thank you,
-${companyName}
-                            `.trim();
-                            doc.text(closingRemarks, margin, yPos);
-                            yPos += doc.getTextDimensions(closingRemarks, {
-                                fontSize: fontSize,
-                                maxWidth: doc.internal.pageSize.width - 2 * margin
-                            }).h + 15; // Space after closing remarks
-
-                            // No need for separator lines or page break logic since each ticket is on its own page
                         }
 
                         doc.save('employee_payroll_statements.pdf');
@@ -1115,6 +999,247 @@ ${companyName}
                 buttonText.textContent = 'Generate Payroll PDF';
                 spinner.style.display = 'none';
                 generatePdfButton.disabled = false;
+            }
+
+            // Function to generate standard PDF format
+            function generateStandardPDF(doc, entry, fontSize, margin, yPos, companyName) {
+                const employeeNumber = entry.employeeNumber;
+                const readingDataEntries = entry.readingDataEntries;
+                const imaliWakho = entry.imaliWakho;
+
+                // Determine table title date range
+                let tableTitle = "";
+                if (readingDataEntries && readingDataEntries.length > 0) {
+                    const dates = readingDataEntries.map(e => {
+                        const parts = e.date.split('/');
+                        return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                    });
+                    dates.sort((a, b) => a - b);
+                    const firstDate = dates[0].toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                    const lastDate = dates[dates.length - 1].toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                    tableTitle = `From ${firstDate} - ${lastDate}`;
+                }
+
+                // Message Content Construction
+                let messageLines = [];
+                
+                // Add bold employee number
+                doc.setFontSize(fontSize);
+                doc.setFont(undefined, 'bold');
+                doc.text(`Employee Number: ${employeeNumber}`, margin, yPos);
+                yPos += doc.getTextDimensions(`Employee Number: ${employeeNumber}`, {
+                    fontSize: fontSize,
+                    maxWidth: doc.internal.pageSize.width - 2 * margin
+                }).h + 5;
+                
+                // Reset font to normal for rest of content
+                doc.setFont(undefined, 'normal');
+                
+                messageLines.push(``);
+                messageLines.push(`Dear cane cutter,`);
+                messageLines.push(``);
+                messageLines.push(`The information below contains your payroll info for the selected/stated period.`);
+                messageLines.push(``);
+
+                const textBeforeTableHeight = doc.getTextDimensions(messageLines.join('\n'), {
+                    fontSize: fontSize,
+                    maxWidth: doc.internal.pageSize.width - 2 * margin
+                }).h;
+
+                // Add text content before table
+                doc.setFontSize(fontSize);
+                doc.text(messageLines.join('\n'), margin, yPos);
+                yPos += textBeforeTableHeight + 5; // Space after text before table
+
+                // Add the table if reading data exists
+                if (readingDataEntries && readingDataEntries.length > 0) {
+                    // Add table title
+                    doc.setFontSize(fontSize + 2);
+                    doc.setFont(undefined, 'bold');
+                    doc.text(tableTitle, doc.internal.pageSize.width / 2, yPos, { align: 'center' });
+                    yPos += 10; // Space after table title
+                    doc.setFont(undefined, 'normal');
+
+                    // Prepare table data for autoTable
+                    const head = [['Date', 'Basic Task', 'Basic Meters Completed', 'Bonus Meters Completed', 'Total Meters Completed']];
+                    const body = readingDataEntries.map(item => {
+                        const bonusMeters = item.totalMeters - item.basicTask;
+                        // Show "Undertask (-x)" for negative bonus meters, otherwise show the number (or 0 if negative)
+                        let bonusMetersDisplay;
+                        if (bonusMeters < 0) {
+                            bonusMetersDisplay = `Undertask (${bonusMeters})`;
+                        } else {
+                            bonusMetersDisplay = bonusMeters;
+                        }
+                        
+                        // For the actual bonus meters column, show 0 if negative
+                        const actualBonusMeters = bonusMeters < 0 ? 0 : bonusMeters;
+                        
+                        // Basic Meters Completed logic: if bonus meters is 0 (undertask), 
+                        // then basic meters = total meters, otherwise basic meters = basic task
+                        const basicMetersCompleted = actualBonusMeters === 0 ? item.totalMeters : item.basicTask;
+                        
+                        return [
+                            item.date,
+                            item.basicTask,
+                            basicMetersCompleted, // Basic Meters Completed (adjusted for undertask)
+                            actualBonusMeters, // Bonus Meters Completed (0 if negative)
+                            item.totalMeters
+                        ];
+                    });
+
+                    // Draw the table using autoTable
+                    doc.autoTable({
+                        startY: yPos,
+                        head: head,
+                        body: body,
+                        theme: 'grid',
+                        styles: {
+                            fontSize: Math.max(fontSize - 1, 6), // Ensure minimum readable font size
+                            cellPadding: 2,
+                            halign: 'center', // Center align content
+                            valign: 'middle',
+                            lineColor: [200, 200, 200], // Light grey borders
+                            lineWidth: 0.1
+                        },
+                        headStyles: {
+                            fillColor: [220, 220, 220], // Light grey background for header
+                            textColor: [50, 50, 50],
+                            fontStyle: 'bold',
+                            halign: 'center'
+                        },
+                        columnStyles: {
+                            0: { halign: 'left' }, // Date column left aligned
+                        },
+                        margin: { left: margin, right: margin }
+                    });
+                    yPos = doc.autoTable.previous.finalY + 10; // Update yPos after table
+                } else {
+                    yPos += 5; // Just a small space if no table
+                }
+
+                // Add the extracted sentences below the table (without quotes and capitalized)
+                if (imaliWakho) {
+                    doc.setFontSize(fontSize);
+                    
+                    // Only show the second sentence (Imali yakho...), capitalize first letter and remove quotes
+                    const capitalized = imaliWakho.charAt(0).toUpperCase() + imaliWakho.slice(1);
+                    
+                    doc.text(capitalized, margin, yPos);
+                    yPos += doc.getTextDimensions(capitalized, {
+                        fontSize: fontSize,
+                        maxWidth: doc.internal.pageSize.width - 2 * margin
+                    }).h + 10; // Space after imali line
+                } else {
+                    yPos += 5; // Small space if no imali line
+                }
+
+                // Add closing remarks and company name
+                doc.setFontSize(fontSize);
+                const closingRemarks = `
+Thank you,
+${companyName}
+                `.trim();
+                doc.text(closingRemarks, margin, yPos);
+            }
+
+            // Function to generate Sitefasi custom PDF format
+            function generateSitefasiPDF(doc, entry, fontSize, margin, yPos, companyName) {
+                const employeeNumber = entry.employeeNumber;
+                const readingDataEntries = entry.readingDataEntries;
+                const imaliWakho = entry.imaliWakho;
+
+                // Sitefasi custom header
+                doc.setFontSize(fontSize + 4);
+                doc.setFont(undefined, 'bold');
+                doc.text('SITEFASI INVESTMENTS', doc.internal.pageSize.width / 2, yPos, { align: 'center' });
+                yPos += 15;
+
+                doc.setFontSize(fontSize + 2);
+                doc.text('PAYROLL STATEMENT', doc.internal.pageSize.width / 2, yPos, { align: 'center' });
+                yPos += 20;
+
+                // Employee details section
+                doc.setFontSize(fontSize);
+                doc.setFont(undefined, 'bold');
+                doc.text(`Employee ID: ${employeeNumber}`, margin, yPos);
+                yPos += 10;
+
+                // Date range
+                if (readingDataEntries && readingDataEntries.length > 0) {
+                    const dates = readingDataEntries.map(e => {
+                        const parts = e.date.split('/');
+                        return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                    });
+                    dates.sort((a, b) => a - b);
+                    const firstDate = dates[0].toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+                    const lastDate = dates[dates.length - 1].toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+                    doc.text(`Period: ${firstDate} - ${lastDate}`, margin, yPos);
+                    yPos += 20;
+                }
+
+                // Sitefasi custom table
+                if (readingDataEntries && readingDataEntries.length > 0) {
+                    const head = [['Date', 'Target', 'Achieved', 'Performance', 'Total']];
+                    const body = readingDataEntries.map(item => {
+                        const bonusMeters = item.totalMeters - item.basicTask;
+                        const performance = bonusMeters >= 0 ? 'Above Target' : 'Below Target';
+                        const actualBonusMeters = bonusMeters < 0 ? 0 : bonusMeters;
+                        const basicMetersCompleted = actualBonusMeters === 0 ? item.totalMeters : item.basicTask;
+                        
+                        return [
+                            item.date,
+                            item.basicTask,
+                            basicMetersCompleted,
+                            performance,
+                            item.totalMeters
+                        ];
+                    });
+
+                    doc.autoTable({
+                        startY: yPos,
+                        head: head,
+                        body: body,
+                        theme: 'grid',
+                        styles: {
+                            fontSize: Math.max(fontSize - 1, 6),
+                            cellPadding: 3,
+                            halign: 'center',
+                            valign: 'middle',
+                            lineColor: [100, 100, 100],
+                            lineWidth: 0.2
+                        },
+                        headStyles: {
+                            fillColor: [50, 50, 50],
+                            textColor: [255, 255, 255],
+                            fontStyle: 'bold',
+                            halign: 'center'
+                        },
+                        columnStyles: {
+                            0: { halign: 'left' },
+                        },
+                        margin: { left: margin, right: margin }
+                    });
+                    yPos = doc.autoTable.previous.finalY + 15;
+                }
+
+                // Sitefasi custom footer
+                if (imaliWakho) {
+                    doc.setFontSize(fontSize);
+                    doc.setFont(undefined, 'bold');
+                    const capitalized = imaliWakho.charAt(0).toUpperCase() + imaliWakho.slice(1);
+                    doc.text(capitalized, margin, yPos);
+                    yPos += 15;
+                }
+
+                // Sitefasi signature section
+                doc.setFontSize(fontSize);
+                doc.text('Authorized by:', margin, yPos);
+                yPos += 20;
+                doc.text('_________________', margin, yPos);
+                yPos += 5;
+                doc.setFontSize(fontSize - 2);
+                doc.text('Manager Signature', margin, yPos);
             }
         })();
     </script>
