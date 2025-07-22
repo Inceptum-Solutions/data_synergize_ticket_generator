@@ -1147,99 +1147,181 @@ ${companyName}
             function generateSitefasiPDF(doc, entry, fontSize, margin, yPos, companyName) {
                 const employeeNumber = entry.employeeNumber;
                 const readingDataEntries = entry.readingDataEntries;
-                const imaliWakho = entry.imaliWakho;
 
-                // Sitefasi custom header
-                doc.setFontSize(fontSize + 4);
-                doc.setFont(undefined, 'bold');
-                doc.text('SITEFASI INVESTMENTS', doc.internal.pageSize.width / 2, yPos, { align: 'center' });
-                yPos += 15;
-
-                doc.setFontSize(fontSize + 2);
-                doc.text('PAYROLL STATEMENT', doc.internal.pageSize.width / 2, yPos, { align: 'center' });
-                yPos += 20;
-
-                // Employee details section
-                doc.setFontSize(fontSize);
-                doc.setFont(undefined, 'bold');
-                doc.text(`Employee ID: ${employeeNumber}`, margin, yPos);
-                yPos += 10;
-
-                // Date range
+                // Determine table title date range
+                let tableTitle = "";
                 if (readingDataEntries && readingDataEntries.length > 0) {
                     const dates = readingDataEntries.map(e => {
                         const parts = e.date.split('/');
                         return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
                     });
                     dates.sort((a, b) => a - b);
-                    const firstDate = dates[0].toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-                    const lastDate = dates[dates.length - 1].toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-                    doc.text(`Period: ${firstDate} - ${lastDate}`, margin, yPos);
-                    yPos += 20;
+                    const firstDate = dates[0].toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                    const lastDate = dates[dates.length - 1].toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                    tableTitle = `From ${firstDate} - ${lastDate}`;
                 }
 
-                // Sitefasi custom table
+                // Message Content Construction
+                let messageLines = [];
+                
+                // Add bold employee number
+                doc.setFontSize(fontSize);
+                doc.setFont(undefined, 'bold');
+                doc.text(`Employee Number: ${employeeNumber}`, margin, yPos);
+                yPos += doc.getTextDimensions(`Employee Number: ${employeeNumber}`, {
+                    fontSize: fontSize,
+                    maxWidth: doc.internal.pageSize.width - 2 * margin
+                }).h + 5;
+                
+                // Reset font to normal for rest of content
+                doc.setFont(undefined, 'normal');
+                
+                messageLines.push(``);
+                messageLines.push(`Dear cane cutter,`);
+                messageLines.push(``);
+                messageLines.push(`The information below contains your payroll info for the selected/stated period.`);
+                messageLines.push(``);
+
+                const textBeforeTableHeight = doc.getTextDimensions(messageLines.join('\n'), {
+                    fontSize: fontSize,
+                    maxWidth: doc.internal.pageSize.width - 2 * margin
+                }).h;
+
+                // Add text content before table
+                doc.setFontSize(fontSize);
+                doc.text(messageLines.join('\n'), margin, yPos);
+                yPos += textBeforeTableHeight + 5; // Space after text before table
+
+                // Add the table if reading data exists
                 if (readingDataEntries && readingDataEntries.length > 0) {
-                    const head = [['Date', 'Target', 'Achieved', 'Performance', 'Total']];
+                    // Add table title
+                    doc.setFontSize(fontSize + 2);
+                    doc.setFont(undefined, 'bold');
+                    doc.text(tableTitle, doc.internal.pageSize.width / 2, yPos, { align: 'center' });
+                    yPos += 10; // Space after table title
+                    doc.setFont(undefined, 'normal');
+
+                    // Function to calculate Sitefasi pay rates
+                    function calculateSitefasiPay(totalMeters, basicTask) {
+                        const baseRate = 136; // E136 base rate
+                        const rateIncrement = 0.50; // 50 cents increment
+                        
+                        let basicTaskPay = 0;
+                        let bonusTaskPay = 0;
+                        let remainingMeters = totalMeters;
+                        let currentTier = 1;
+                        
+                        // Calculate basic task pay (first tier)
+                        if (remainingMeters >= basicTask) {
+                            const currentRate = baseRate + (currentTier - 1) * rateIncrement;
+                            const ratePerMeter = currentRate / basicTask;
+                            basicTaskPay = basicTask * ratePerMeter;
+                            remainingMeters -= basicTask;
+                            currentTier++;
+                        } else {
+                            const currentRate = baseRate + (currentTier - 1) * rateIncrement;
+                            const ratePerMeter = currentRate / basicTask;
+                            basicTaskPay = remainingMeters * ratePerMeter;
+                            remainingMeters = 0;
+                        }
+                        
+                        // Calculate bonus task pay (additional tiers)
+                        while (remainingMeters > 0) {
+                            const metersInThisTier = Math.min(remainingMeters, basicTask);
+                            const currentRate = baseRate + (currentTier - 1) * rateIncrement;
+                            const ratePerMeter = currentRate / basicTask;
+                            bonusTaskPay += metersInThisTier * ratePerMeter;
+                            remainingMeters -= metersInThisTier;
+                            currentTier++;
+                        }
+                        
+                        return {
+                            basicTaskPay: Math.round(basicTaskPay * 100) / 100,
+                            bonusTaskPay: Math.round(bonusTaskPay * 100) / 100
+                        };
+                    }
+
+                    // Prepare table data for autoTable
+                    const head = [['Date', 'Basic Meters Completed', 'Bonus Meters Completed', 'Basic Task Pay', 'Bonus Task Pay']];
                     const body = readingDataEntries.map(item => {
                         const bonusMeters = item.totalMeters - item.basicTask;
-                        const performance = bonusMeters >= 0 ? 'Above Target' : 'Below Target';
                         const actualBonusMeters = bonusMeters < 0 ? 0 : bonusMeters;
                         const basicMetersCompleted = actualBonusMeters === 0 ? item.totalMeters : item.basicTask;
                         
+                        // Calculate pay using Sitefasi formula
+                        const pay = calculateSitefasiPay(item.totalMeters, item.basicTask);
+                        
                         return [
                             item.date,
-                            item.basicTask,
                             basicMetersCompleted,
-                            performance,
-                            item.totalMeters
+                            actualBonusMeters,
+                            `E${pay.basicTaskPay.toFixed(2)}`,
+                            `E${pay.bonusTaskPay.toFixed(2)}`
                         ];
                     });
 
+                    // Draw the table using autoTable
                     doc.autoTable({
                         startY: yPos,
                         head: head,
                         body: body,
                         theme: 'grid',
                         styles: {
-                            fontSize: Math.max(fontSize - 1, 6),
-                            cellPadding: 3,
-                            halign: 'center',
+                            fontSize: Math.max(fontSize - 1, 6), // Ensure minimum readable font size
+                            cellPadding: 2,
+                            halign: 'center', // Center align content
                             valign: 'middle',
-                            lineColor: [100, 100, 100],
-                            lineWidth: 0.2
+                            lineColor: [200, 200, 200], // Light grey borders
+                            lineWidth: 0.1
                         },
                         headStyles: {
-                            fillColor: [50, 50, 50],
-                            textColor: [255, 255, 255],
+                            fillColor: [220, 220, 220], // Light grey background for header
+                            textColor: [50, 50, 50],
                             fontStyle: 'bold',
                             halign: 'center'
                         },
                         columnStyles: {
-                            0: { halign: 'left' },
+                            0: { halign: 'left' }, // Date column left aligned
                         },
                         margin: { left: margin, right: margin }
                     });
-                    yPos = doc.autoTable.previous.finalY + 15;
+                    yPos = doc.autoTable.previous.finalY + 10; // Update yPos after table
+                } else {
+                    yPos += 5; // Just a small space if no table
                 }
 
-                // Sitefasi custom footer
-                if (imaliWakho) {
+                // Calculate and display total pay instead of Imali sentence
+                if (readingDataEntries && readingDataEntries.length > 0) {
+                    let totalBasicPay = 0;
+                    let totalBonusPay = 0;
+                    
+                    readingDataEntries.forEach(item => {
+                        const pay = calculateSitefasiPay(item.totalMeters, item.basicTask);
+                        totalBasicPay += pay.basicTaskPay;
+                        totalBonusPay += pay.bonusTaskPay;
+                    });
+                    
+                    const totalPay = totalBasicPay + totalBonusPay;
+                    
                     doc.setFontSize(fontSize);
                     doc.setFont(undefined, 'bold');
-                    const capitalized = imaliWakho.charAt(0).toUpperCase() + imaliWakho.slice(1);
-                    doc.text(capitalized, margin, yPos);
+                    doc.text(`Total Basic Task Pay: E${totalBasicPay.toFixed(2)}`, margin, yPos);
+                    yPos += 10;
+                    doc.text(`Total Bonus Task Pay: E${totalBonusPay.toFixed(2)}`, margin, yPos);
+                    yPos += 10;
+                    doc.text(`Total Pay: E${totalPay.toFixed(2)}`, margin, yPos);
                     yPos += 15;
+                } else {
+                    yPos += 5; // Small space if no data
                 }
 
-                // Sitefasi signature section
+                // Add closing remarks and company name
                 doc.setFontSize(fontSize);
-                doc.text('Authorized by:', margin, yPos);
-                yPos += 20;
-                doc.text('_________________', margin, yPos);
-                yPos += 5;
-                doc.setFontSize(fontSize - 2);
-                doc.text('Manager Signature', margin, yPos);
+                const closingRemarks = `
+Thank you,
+${companyName}
+                `.trim();
+                doc.text(closingRemarks, margin, yPos);
             }
         })();
     </script>
