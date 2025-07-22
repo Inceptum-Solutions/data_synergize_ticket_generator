@@ -976,17 +976,6 @@
                             messageLines.push(`The information below contains your payroll info for the selected/stated period.`);
                             messageLines.push(``);
 
-                            // Add the extracted sentences above the line if they exist
-                            if (imaliSeyiyonke || imaliWakho) {
-                                if (imaliSeyiyonke) {
-                                    messageLines.push(`"${imaliSeyiyonke}"`);
-                                }
-                                if (imaliWakho) {
-                                    messageLines.push(`"${imaliWakho}"`);
-                                }
-                                messageLines.push(``);
-                            }
-
                             const textBeforeTableHeight = doc.getTextDimensions(messageLines.join('\n'), {
                                 fontSize: fontSize,
                                 maxWidth: doc.internal.pageSize.width - 2 * margin
@@ -1010,13 +999,22 @@
                                 const head = [['Date', 'Basic Task', 'Basic Meters Completed', 'Bonus Meters Completed', 'Total Meters Completed']];
                                 const body = readingDataEntries.map(item => {
                                     const bonusMeters = item.totalMeters - item.basicTask;
-                                    // Add "-" in front of meters for undertask cases
-                                    const bonusMetersDisplay = bonusMeters < 0 ? `-${Math.abs(bonusMeters)}` : bonusMeters;
+                                    // Show "Undertask (-x)" for negative bonus meters, otherwise show the number (or 0 if negative)
+                                    let bonusMetersDisplay;
+                                    if (bonusMeters < 0) {
+                                        bonusMetersDisplay = `Undertask (${bonusMeters})`;
+                                    } else {
+                                        bonusMetersDisplay = bonusMeters;
+                                    }
+                                    
+                                    // For the actual bonus meters column, show 0 if negative
+                                    const actualBonusMeters = bonusMeters < 0 ? 0 : bonusMeters;
+                                    
                                     return [
                                         item.date,
                                         item.basicTask,
                                         item.basicTask, // Basic Meters Completed is same as Basic Task
-                                        bonusMetersDisplay, // Bonus Meters Completed
+                                        actualBonusMeters, // Bonus Meters Completed (0 if negative)
                                         item.totalMeters
                                     ];
                                 });
@@ -1051,8 +1049,32 @@
                                 yPos += 5; // Just a small space if no table
                             }
 
-                            // Remove the old imali lines section since we now place them above the line
-                            yPos += 5;
+                            // Add the extracted sentences below the table (without quotes and capitalized)
+                            if (imaliSeyiyonke || imaliWakho) {
+                                doc.setFontSize(fontSize);
+                                const imaliLines = [];
+                                
+                                if (imaliSeyiyonke) {
+                                    // Capitalize first letter and remove quotes
+                                    const capitalized = imaliSeyiyonke.charAt(0).toUpperCase() + imaliSeyiyonke.slice(1);
+                                    imaliLines.push(capitalized);
+                                }
+                                if (imaliWakho) {
+                                    // Capitalize first letter and remove quotes
+                                    const capitalized = imaliWakho.charAt(0).toUpperCase() + imaliWakho.slice(1);
+                                    imaliLines.push(capitalized);
+                                }
+                                
+                                if (imaliLines.length > 0) {
+                                    doc.text(imaliLines, margin, yPos);
+                                    yPos += doc.getTextDimensions(imaliLines.join('\n'), {
+                                        fontSize: fontSize,
+                                        maxWidth: doc.internal.pageSize.width - 2 * margin
+                                    }).h + 10; // Space after imali lines
+                                }
+                            } else {
+                                yPos += 5; // Small space if no imali lines
+                            }
 
                             // Add closing remarks and company name
                             doc.setFontSize(fontSize);
