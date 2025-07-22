@@ -1054,30 +1054,19 @@
                             }
 
                             // Add the extracted sentences below the table (without quotes and capitalized)
-                            if (imaliSeyiyonke || imaliWakho) {
+                            if (imaliWakho) {
                                 doc.setFontSize(fontSize);
-                                const imaliLines = [];
                                 
-                                if (imaliSeyiyonke) {
-                                    // Capitalize first letter and remove quotes
-                                    const capitalized = imaliSeyiyonke.charAt(0).toUpperCase() + imaliSeyiyonke.slice(1);
-                                    imaliLines.push(capitalized);
-                                }
-                                if (imaliWakho) {
-                                    // Capitalize first letter and remove quotes
-                                    const capitalized = imaliWakho.charAt(0).toUpperCase() + imaliWakho.slice(1);
-                                    imaliLines.push(capitalized);
-                                }
+                                // Only show the second sentence (Imali yakho...), capitalize first letter and remove quotes
+                                const capitalized = imaliWakho.charAt(0).toUpperCase() + imaliWakho.slice(1);
                                 
-                                if (imaliLines.length > 0) {
-                                    doc.text(imaliLines, margin, yPos);
-                                    yPos += doc.getTextDimensions(imaliLines.join('\n'), {
-                                        fontSize: fontSize,
-                                        maxWidth: doc.internal.pageSize.width - 2 * margin
-                                    }).h + 10; // Space after imali lines
-                                }
+                                doc.text(capitalized, margin, yPos);
+                                yPos += doc.getTextDimensions(capitalized, {
+                                    fontSize: fontSize,
+                                    maxWidth: doc.internal.pageSize.width - 2 * margin
+                                }).h + 10; // Space after imali line
                             } else {
-                                yPos += 5; // Small space if no imali lines
+                                yPos += 5; // Small space if no imali line
                             }
 
                             // Add closing remarks and company name
