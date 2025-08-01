@@ -549,16 +549,16 @@
                     <div class="select-container">
                         <select id="companyName" required>
                             <option value="">Select Company</option>
-                            <option value="Jozana">Jozana</option>
+                            <!-- <option value="Jozana">Jozana</option> -->
                             <option value="Sitefasi Investments">Sitefasi Investments</option>
-                            <option value="Sima Ndvodza Investments">Sima Ndvodza Investments</option>
+                            <!-- <option value="Sima Ndvodza Investments">Sima Ndvodza Investments</option> -->
                             <option value="Wilper Holdings">Wilper Holdings</option>
-                            <option value="Bhefranel">Bhefranel</option>
+                            <!-- <option value="Bhefranel">Bhefranel</option> -->
                             <option value="Fibok">Fibok</option>
-                            <option value="Delma">Delma</option>
-                            <option value="NGS">NGS</option>
-                            <option value="eMachalachala">eMachalachala</option>
-                            <option value="Inceptum Solutions">Inceptum Solutions</option>
+                            <!-- <option value="Delma">Delma</option> -->
+                            <!-- <option value="NGS">NGS</option> -->
+                            <!-- <option value="eMachalachala">eMachalachala</option> -->
+                            <!-- <option value="Inceptum Solutions">Inceptum Solutions</option> -->
                         </select>
                     </div>
                 </div>
@@ -721,7 +721,7 @@
                 return -1;
             }
 
-            // Function to parse "DD/MM/YYYY - XXX/YYY" pattern (now handles multiple occurrences)
+            // Function to parse "DD/MM/YYYY - XXX/YYY" pattern (original format for Wilper and others)
             function parseDateAndMetres(text) {
                 const regex = /(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d+)\/(\d+)/g;
                 let matches = [];
@@ -734,6 +734,35 @@
                     });
                 }
                 return matches.length > 0 ? matches : null;
+            }
+
+            // Function to parse Sitefasi/Fibok format with cane type and pre-calculated values
+            function parseSitefasiFibokFormat(text) {
+                const entries = [];
+                
+                console.log('Parsing Sitefasi/Fibok text:', text);
+                
+                // Use a more comprehensive regex to match the entire pattern
+                const pattern = /(\d{2}\/\d{2}\/\d{4})\s+Cane Type\(([^)]+)\),\s*Basic\((\d+)\/(\d+)=E([\d.]+)\),\s*Bonus\((\d+)\/(\d+)=E([\d.]+)\)/g;
+                
+                let match;
+                while ((match = pattern.exec(text)) !== null) {
+                    console.log('Found match:', match);
+                    entries.push({
+                        date: match[1],
+                        caneType: match[2],
+                        basicMetersCompleted: parseInt(match[3]),
+                        basicTask: parseInt(match[4]),
+                        basicTaskPay: parseFloat(match[5]),
+                        bonusMetersCompleted: parseInt(match[6]),
+                        bonusTask: parseInt(match[7]),
+                        bonusTaskPay: parseFloat(match[8]),
+                        totalMeters: parseInt(match[3]) + parseInt(match[6])
+                    });
+                }
+                
+                console.log('Parsed entries:', entries);
+                return entries.length > 0 ? entries : null;
             }
 
             // Function to extract date range from ticket details
@@ -759,7 +788,7 @@
             }
 
             // Function to parse CSV content
-            function parseCsv(csvContent) {
+            function parseCsv(csvContent, companyName) {
                 const lines = csvContent.split('\n').filter(line => line.trim() !== '');
                 const data = [];
 
@@ -779,6 +808,10 @@
                     return [];
                 }
 
+                // Choose parsing function based on company
+                const isSitefasiOrFibok = companyName === 'Sitefasi Investments' || companyName === 'Fibok';
+                const parseFunction = isSitefasiOrFibok ? parseSitefasiFibokFormat : parseDateAndMetres;
+
                 for (let i = 1; i < lines.length; i++) {
                     const line = lines[i].trim();
                     const parts = line.match(/(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|([^,]*))/g)
@@ -788,8 +821,11 @@
                         const employeeNumber = parts[employeeNumberColIndex];
                         const ticketDetails = parts[ticketDetailsColIndex];
                         
-                        const readingDataEntries = parseDateAndMetres(ticketDetails);
+                        const readingDataEntries = parseFunction(ticketDetails);
                         const imaliStrings = extractImaliStrings(ticketDetails);
+                        
+                        console.log('Employee:', employeeNumber);
+                        console.log('Parsed entries:', readingDataEntries);
 
                         if (employeeNumber && ticketDetails) {
                             data.push({
@@ -808,11 +844,15 @@
             }
 
             // Function to parse XLSX content
-            function parseXlsx(arrayBuffer) {
+            function parseXlsx(arrayBuffer, companyName) {
                 const workbook = XLSX.read(arrayBuffer, { type: 'array' });
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
                 const json = XLSX.utils.sheet_to_json(worksheet);
+
+                // Choose parsing function based on company
+                const isSitefasiOrFibok = companyName === 'Sitefasi Investments' || companyName === 'Fibok';
+                const parseFunction = isSitefasiOrFibok ? parseSitefasiFibokFormat : parseDateAndMetres;
 
                 const data = [];
                 json.forEach(row => {
@@ -826,7 +866,7 @@
                     const employeeNumber = employeeNumberKey ? row[employeeNumberKey] : '';
                     const ticketDetails = ticketDetailsKey ? row[ticketDetailsKey] : '';
                     
-                    const readingDataEntries = parseDateAndMetres(String(ticketDetails));
+                    const readingDataEntries = parseFunction(String(ticketDetails));
                     const imaliStrings = extractImaliStrings(String(ticketDetails));
 
                     if (employeeNumber && ticketDetails) {
@@ -878,9 +918,9 @@
                         const fileExtension = file.name.split('.').pop().toLowerCase();
 
                         if (fileExtension === 'csv') {
-                            parsedData = parseCsv(e.target.result);
+                            parsedData = parseCsv(e.target.result, companyName);
                         } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
-                            parsedData = parseXlsx(e.target.result);
+                            parsedData = parseXlsx(e.target.result, companyName);
                         } else {
                             showFeedback('Unsupported file type. Please upload a CSV or XLSX file.', 'error');
                             resetButton();
@@ -917,8 +957,8 @@
                         const pageHeight = doc.internal.pageSize.height;
                         let yPos = margin;
 
-                        // Check if Sitefasi is selected for custom PDF format
-                        const isSitefasi = companyName === 'Sitefasi Investments';
+                        // Check if Sitefasi or Fibok is selected for custom PDF format
+                        const isSitefasiOrFibok = companyName === 'Sitefasi Investments' || companyName === 'Fibok';
 
                         // Iterate through each filtered data entry
                         for (let i = 0; i < filteredData.length; i++) {
@@ -958,9 +998,9 @@
                             }
                             yPos = margin;
 
-                            // Different PDF format for Sitefasi
-                            if (isSitefasi) {
-                                // Sitefasi custom format
+                            // Different PDF format for Sitefasi and Fibok
+                            if (isSitefasiOrFibok) {
+                                // Sitefasi/Fibok custom format
                                 generateSitefasiPDF(doc, entry, fontSize, margin, yPos, companyName);
                             } else {
                                 // Standard format for other companies
@@ -1143,7 +1183,7 @@ ${companyName}
                 doc.text(closingRemarks, margin, yPos);
             }
 
-            // Function to generate Sitefasi custom PDF format
+            // Function to generate Sitefasi/Fibok custom PDF format
             function generateSitefasiPDF(doc, entry, fontSize, margin, yPos, companyName) {
                 const employeeNumber = entry.employeeNumber;
                 const readingDataEntries = entry.readingDataEntries;
@@ -1201,62 +1241,18 @@ ${companyName}
                     yPos += 10; // Space after table title
                     doc.setFont(undefined, 'normal');
 
-                    // Function to calculate Sitefasi pay rates
-                    function calculateSitefasiPay(totalMeters, basicTask) {
-                        const baseRate = 136; // E136 base rate
-                        const rateIncrement = 0.50; // 50 cents increment
-                        
-                        let basicTaskPay = 0;
-                        let bonusTaskPay = 0;
-                        let remainingMeters = totalMeters;
-                        let currentTier = 1;
-                        
-                        // Calculate basic task pay (first tier)
-                        if (remainingMeters >= basicTask) {
-                            const currentRate = baseRate + (currentTier - 1) * rateIncrement;
-                            const ratePerMeter = currentRate / basicTask;
-                            basicTaskPay = basicTask * ratePerMeter;
-                            remainingMeters -= basicTask;
-                            currentTier++;
-                        } else {
-                            const currentRate = baseRate + (currentTier - 1) * rateIncrement;
-                            const ratePerMeter = currentRate / basicTask;
-                            basicTaskPay = remainingMeters * ratePerMeter;
-                            remainingMeters = 0;
-                        }
-                        
-                        // Calculate bonus task pay (additional tiers)
-                        while (remainingMeters > 0) {
-                            const metersInThisTier = Math.min(remainingMeters, basicTask);
-                            const currentRate = baseRate + (currentTier - 1) * rateIncrement;
-                            const ratePerMeter = currentRate / basicTask;
-                            bonusTaskPay += metersInThisTier * ratePerMeter;
-                            remainingMeters -= metersInThisTier;
-                            currentTier++;
-                        }
-                        
-                        return {
-                            basicTaskPay: Math.round(basicTaskPay * 100) / 100,
-                            bonusTaskPay: Math.round(bonusTaskPay * 100) / 100
-                        };
-                    }
+
 
                     // Prepare table data for autoTable
-                    const head = [['Date', 'Basic Meters Completed', 'Bonus Meters Completed', 'Basic Task Pay', 'Bonus Task Pay']];
+                    const head = [['Date', 'Cane Type', 'Basic Meters Completed', 'Bonus Meters Completed', 'Basic Task Pay', 'Bonus Task Pay']];
                     const body = readingDataEntries.map(item => {
-                        const bonusMeters = item.totalMeters - item.basicTask;
-                        const actualBonusMeters = bonusMeters < 0 ? 0 : bonusMeters;
-                        const basicMetersCompleted = actualBonusMeters === 0 ? item.totalMeters : item.basicTask;
-                        
-                        // Calculate pay using Sitefasi formula
-                        const pay = calculateSitefasiPay(item.totalMeters, item.basicTask);
-                        
                         return [
                             item.date,
-                            basicMetersCompleted,
-                            actualBonusMeters,
-                            `E${pay.basicTaskPay.toFixed(2)}`,
-                            `E${pay.bonusTaskPay.toFixed(2)}`
+                            item.caneType || 'Unknown',
+                            item.basicMetersCompleted || 0,
+                            item.bonusMetersCompleted || 0,
+                            `E${(item.basicTaskPay || 0).toFixed(2)}`,
+                            `E${(item.bonusTaskPay || 0).toFixed(2)}`
                         ];
                     });
 
@@ -1290,15 +1286,14 @@ ${companyName}
                     yPos += 5; // Just a small space if no table
                 }
 
-                // Calculate and display total pay instead of Imali sentence
+                // Calculate and display total pay using pre-calculated values
                 if (readingDataEntries && readingDataEntries.length > 0) {
                     let totalBasicPay = 0;
                     let totalBonusPay = 0;
                     
                     readingDataEntries.forEach(item => {
-                        const pay = calculateSitefasiPay(item.totalMeters, item.basicTask);
-                        totalBasicPay += pay.basicTaskPay;
-                        totalBonusPay += pay.bonusTaskPay;
+                        totalBasicPay += item.basicTaskPay || 0;
+                        totalBonusPay += item.bonusTaskPay || 0;
                     });
                     
                     const totalPay = totalBasicPay + totalBonusPay;
