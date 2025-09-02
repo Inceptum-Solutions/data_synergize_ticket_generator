@@ -555,7 +555,7 @@
                             <option value="Wilper Holdings">Wilper Holdings</option>
                             <!-- <option value="Bhefranel">Bhefranel</option> -->
                             <option value="Fibok">Fibok</option>
-                            <!-- <option value="Delma">Delma</option> -->
+                            <option value="Delma">Delma</option>
                             <!-- <option value="NGS">NGS</option> -->
                             <!-- <option value="eMachalachala">eMachalachala</option> -->
                             <!-- <option value="Inceptum Solutions">Inceptum Solutions</option> -->
@@ -809,7 +809,7 @@
                 }
 
                 // Choose parsing function based on company
-                const isSitefasiOrFibok = companyName === 'Sitefasi Investments' || companyName === 'Fibok';
+                const isSitefasiOrFibok = companyName === 'Sitefasi Investments' || companyName === 'Fibok' || companyName === 'Delma';
                 const parseFunction = isSitefasiOrFibok ? parseSitefasiFibokFormat : parseDateAndMetres;
 
                 for (let i = 1; i < lines.length; i++) {
@@ -851,7 +851,7 @@
                 const json = XLSX.utils.sheet_to_json(worksheet);
 
                 // Choose parsing function based on company
-                const isSitefasiOrFibok = companyName === 'Sitefasi Investments' || companyName === 'Fibok';
+                const isSitefasiOrFibok = companyName === 'Sitefasi Investments' || companyName === 'Fibok' || companyName === 'Delma';
                 const parseFunction = isSitefasiOrFibok ? parseSitefasiFibokFormat : parseDateAndMetres;
 
                 const data = [];
@@ -957,8 +957,8 @@
                         const pageHeight = doc.internal.pageSize.height;
                         let yPos = margin;
 
-                        // Check if Sitefasi or Fibok is selected for custom PDF format
-                        const isSitefasiOrFibok = companyName === 'Sitefasi Investments' || companyName === 'Fibok';
+                        // Check if Sitefasi, Fibok, or Delma is selected for custom PDF format
+                        const isSitefasiOrFibok = companyName === 'Sitefasi Investments' || companyName === 'Fibok' || companyName === 'Delma';
 
                         // Iterate through each filtered data entry
                         for (let i = 0; i < filteredData.length; i++) {
@@ -998,9 +998,9 @@
                             }
                             yPos = margin;
 
-                            // Different PDF format for Sitefasi and Fibok
+                            // Different PDF format for Sitefasi, Fibok, and Delma
                             if (isSitefasiOrFibok) {
-                                // Sitefasi/Fibok custom format
+                                // Sitefasi/Fibok/Delma custom format
                                 generateSitefasiPDF(doc, entry, fontSize, margin, yPos, companyName);
                             } else {
                                 // Standard format for other companies
@@ -1183,7 +1183,7 @@ ${companyName}
                 doc.text(closingRemarks, margin, yPos);
             }
 
-            // Function to generate Sitefasi/Fibok custom PDF format
+            // Function to generate Sitefasi/Fibok/Delma custom PDF format
             function generateSitefasiPDF(doc, entry, fontSize, margin, yPos, companyName) {
                 const employeeNumber = entry.employeeNumber;
                 const readingDataEntries = entry.readingDataEntries;

@@ -90,7 +90,7 @@ Pre-configured companies:
 - Wilper Holdings
 - Bhefranel
 - Fibok
-- Delma
+- Delma (uses custom format like Sitefasi/Fibok)
 - NGS
 - eMachalachala
 - Inceptum Solutions
