@@ -742,12 +742,12 @@
                 
                 console.log('Parsing Sitefasi/Fibok text:', text);
                 
-                // Use a more comprehensive regex to match the entire pattern
-                const pattern = /(\d{2}\/\d{2}\/\d{4})\s+Cane Type\(([^)]+)\),\s*Basic\((\d+)\/(\d+)=E([\d.]+)\),\s*Bonus\((\d+)\/(\d+)=E([\d.]+)\)/g;
+                // First, try to match the standard format with Basic and Bonus breakdown
+                const standardPattern = /(\d{2}\/\d{2}\/\d{4})\s+Cane Type\(([^)]+)\),\s*Basic\((\d+)\/(\d+)=E([\d.]+)\),\s*Bonus\((\d+)\/(\d+)=E([\d.]+)\)/g;
                 
                 let match;
-                while ((match = pattern.exec(text)) !== null) {
-                    console.log('Found match:', match);
+                while ((match = standardPattern.exec(text)) !== null) {
+                    console.log('Found standard format match:', match);
                     entries.push({
                         date: match[1],
                         caneType: match[2],
@@ -758,6 +758,28 @@
                         bonusTask: parseInt(match[7]),
                         bonusTaskPay: parseFloat(match[8]),
                         totalMeters: parseInt(match[3]) + parseInt(match[6])
+                    });
+                }
+                
+                // Then, try to match the simplified format for tasks like "Carrying Out"
+                // Format: DD/MM/YYYY Cane Type(Type) =EAmount)
+                const simplePattern = /(\d{2}\/\d{2}\/\d{4})\s+Cane Type\(([^)]+)\)\s*=E([\d.]+)\)/g;
+                
+                // Reset regex lastIndex to search from the beginning
+                simplePattern.lastIndex = 0;
+                while ((match = simplePattern.exec(text)) !== null) {
+                    console.log('Found simple format match (Carrying Out type):', match);
+                    const amount = parseFloat(match[3]);
+                    entries.push({
+                        date: match[1],
+                        caneType: match[2],
+                        basicMetersCompleted: 0,
+                        basicTask: 0,
+                        basicTaskPay: amount, // Put the amount in basicTaskPay for display
+                        bonusMetersCompleted: 0,
+                        bonusTask: 0,
+                        bonusTaskPay: 0,
+                        totalMeters: 0
                     });
                 }
                 
@@ -1246,11 +1268,13 @@ ${companyName}
                     // Prepare table data for autoTable
                     const head = [['Date', 'Cane Type', 'Basic Meters Completed', 'Bonus Meters Completed', 'Basic Task Pay', 'Bonus Task Pay']];
                     const body = readingDataEntries.map(item => {
+                        // For simple tasks like "Carrying Out" (where totalMeters is 0), show N/A for meters
+                        const isSimpleTask = (item.totalMeters || 0) === 0 && (item.basicTaskPay || 0) > 0 && (item.basicMetersCompleted || 0) === 0;
                         return [
                             item.date,
                             item.caneType || 'Unknown',
-                            item.basicMetersCompleted || 0,
-                            item.bonusMetersCompleted || 0,
+                            isSimpleTask ? 'N/A' : (item.basicMetersCompleted || 0),
+                            isSimpleTask ? 'N/A' : (item.bonusMetersCompleted || 0),
                             `E${(item.basicTaskPay || 0).toFixed(2)}`,
                             `E${(item.bonusTaskPay || 0).toFixed(2)}`
                         ];
