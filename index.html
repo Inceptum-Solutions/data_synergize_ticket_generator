@@ -762,8 +762,8 @@
                 }
                 
                 // Then, try to match the simplified format for tasks like "Carrying Out"
-                // Format: DD/MM/YYYY Cane Type(Type) =EAmount)
-                const simplePattern = /(\d{2}\/\d{2}\/\d{4})\s+Cane Type\(([^)]+)\)\s*=E([\d.]+)\)/g;
+                // Format: DD/MM/YYYY Cane Type(Carrying Out), =E72
+                const simplePattern = /(\d{2}\/\d{2}\/\d{4})\s+Cane Type\(([^)]+)\),?\s*=E([\d.]+)/g;
                 
                 // Reset regex lastIndex to search from the beginning
                 simplePattern.lastIndex = 0;
